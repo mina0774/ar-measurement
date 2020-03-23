@@ -84,7 +84,6 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
 
   private final BackgroundRenderer backgroundRenderer = new BackgroundRenderer();
   private final ObjectRenderer virtualObject = new ObjectRenderer(); // 화면에 보여줄 Object
-  private final ObjectRenderer virtualObjectShadow = new ObjectRenderer(); // 화면에 보여줄 Object 그림자
   private final PlaneRenderer planeRenderer = new PlaneRenderer();
   private final PointCloudRenderer pointCloudRenderer = new PointCloudRenderer();  // Rendering 됐을 시 그려줄 Object
 
@@ -257,11 +256,6 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
       virtualObject.createOnGlThread(/*context=*/ this, "models/andy.obj", "models/andy.png");
       virtualObject.setMaterialProperties(0.0f, 2.0f, 0.5f, 6.0f);
 
-      virtualObjectShadow.createOnGlThread(
-          /*context=*/ this, "models/andy_shadow.obj", "models/andy_shadow.png");
-      virtualObjectShadow.setBlendMode(BlendMode.Shadow);
-      virtualObjectShadow.setMaterialProperties(1.0f, 0.0f, 0.0f, 1.0f);
-
     } catch (IOException e) {
       Log.e(TAG, "Failed to read an asset file", e);
     }
@@ -346,7 +340,7 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
           session.getAllTrackables(Plane.class), camera.getDisplayOrientedPose(), projmtx);
 
       // Visualize anchors created by touch.
-      float scaleFactor = 1.0f;
+      float scaleFactor = 0.1f;
       for (ColoredAnchor coloredAnchor : anchors) {
         if (coloredAnchor.anchor.getTrackingState() != TrackingState.TRACKING) {
           continue;
@@ -362,9 +356,7 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
 
         // Update and draw the model and its shadow.
         virtualObject.updateModelMatrix(anchorMatrix, scaleFactor);
-        virtualObjectShadow.updateModelMatrix(anchorMatrix, scaleFactor);
         virtualObject.draw(viewmtx, projmtx, colorCorrectionRgba, coloredAnchor.color);
-        virtualObjectShadow.draw(viewmtx, projmtx, colorCorrectionRgba, coloredAnchor.color);
       }
 
     } catch (Throwable t) {
@@ -373,71 +365,88 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
     }
   }
 
-  // Handle only one tap per frame, as taps are usually low frequency compared to frame rate.
-  private void handleTap(Frame frame, Camera camera) {
-    MotionEvent tap = tapHelper.poll();
-    if (tap != null && camera.getTrackingState() == TrackingState.TRACKING) {
-      for (HitResult hit : frame.hitTest(tap)) {
-        // Check if any plane was hit, and if it was hit inside the plane polygon
-        Trackable trackable = hit.getTrackable();
-        // Creates an anchor if a plane or an oriented point was hit.
-        if ((trackable instanceof Plane
-                && ((Plane) trackable).isPoseInPolygon(hit.getHitPose())
-                && (PlaneRenderer.calculateDistanceToPlane(hit.getHitPose(), camera.getPose()) > 0))
-            || (trackable instanceof Point
-                && ((Point) trackable).getOrientationMode()
-                    == OrientationMode.ESTIMATED_SURFACE_NORMAL)) {
+    // Handle only one tap per frame, as taps are usually low frequency compared to frame rate.
+    private void handleTap(Frame frame, Camera camera) {
+      if(anchors.size()<2) {
+          MotionEvent tap = tapHelper.poll();
+          if (tap != null && camera.getTrackingState() == TrackingState.TRACKING) {
+              for (HitResult hit : frame.hitTest(tap)) {
+                  // Check if any plane was hit, and if it was hit inside the plane polygon
+                  Trackable trackable = hit.getTrackable();
+                  // Creates an anchor if a plane or an oriented point was hit.
+                  if ((trackable instanceof Plane
+                          && ((Plane) trackable).isPoseInPolygon(hit.getHitPose())
+                          && (PlaneRenderer.calculateDistanceToPlane(hit.getHitPose(), camera.getPose()) > 0))
+                          || (trackable instanceof Point
+                          && ((Point) trackable).getOrientationMode()
+                          == OrientationMode.ESTIMATED_SURFACE_NORMAL)) {
 
-          //점이 찍힌 지점
-          Pose pose=hit.getHitPose();
-          float[] points=new float[]{pose.tx(),pose.ty(),pose.tz()};
-          mPoints.add(points);
-          updateDistance();
+                      //화면을 누른 지점
+                      Pose pose = hit.getHitPose();
 
-          //카메라 위치
-          float CamerapointX = camera.getPose().tx();
-          float CamerapointY = camera.getPose().ty();
-          float CamerapointZ = camera.getPose().tz();
+ /*
+                        //카메라 위치
+                        float CamerapointX = camera.getPose().tx();
+                        float CamerapointY = camera.getPose().ty();
+                        float CamerapointZ = camera.getPose().tz();
 
-          // Rendering 된 지점 선택 위치와 거리(카메라와의)
-          float returnDistance = hit.getDistance(); // 미터 단위
+                        // Rendering 된 지점 선택 위치와 거리(카메라와의)
+                        float returnDistance = hit.getDistance(); // 미터 단위
 
-          // Hits are sorted by depth. Consider only closest hit on a plane or oriented point.
-          // Cap the number of objects created. This avoids overloading both the
-          // rendering system and ARCore.
-          if (anchors.size() >= 2) {
-            anchors.get(0).anchor.detach();
+             Hits are sorted by depth. Consider only closest hit on a plane or oriented point.
+              // Cap the number of objects created. This avoids overloading both the
+              // rendering system and ARCore.
+              if (anchors.size() >= 2) {
+                  anchors.get(0).anchor.detach();
 
-            // 선택 좌표
-            float anchorX = anchors.get(0).anchor.getPose().tx();
-            float anchorY = anchors.get(0).anchor.getPose().ty();
-            float anchorZ = anchors.get(0).anchor.getPose().tz();
-            Log.d("anchor",anchorX+","+anchorY+","+anchorZ);
-            anchors.remove(0);
-            updateDistance();
+                  // 선택 좌표
+                  float anchorX = anchors.get(0).anchor.getPose().tx();
+                  float anchorY = anchors.get(0).anchor.getPose().ty();
+                  float anchorZ = anchors.get(0).anchor.getPose().tz();
+
+                  anchors.remove(0);
+              }*/
+
+                      // Assign a color to the object for rendering based on the trackable type
+                      // this anchor attached to. For AR_TRACKABLE_POINT, it's blue color, and
+                      // for AR_TRACKABLE_PLANE, it's green color.
+                      float[] objColor;
+                      if (trackable instanceof Point) {
+                          objColor = new float[]{66.0f, 133.0f, 244.0f, 255.0f};
+                      } else if (trackable instanceof Plane) {
+                          objColor = new float[]{139.0f, 195.0f, 74.0f, 255.0f};
+                      } else {
+                          objColor = DEFAULT_COLOR;
+                      }
+
+                      // Adding an Anchor tells ARCore that it should track this position in
+                      // space. This anchor is created on the Plane to place the 3D model
+                      // in the correct position relative both to the world and to the plane.
+                      anchors.add(new ColoredAnchor(hit.createAnchor(), objColor));
+
+                      if (anchors.size() == 1) {
+                          float anchorX = anchors.get(0).anchor.getPose().tx();
+                          float anchorY = anchors.get(0).anchor.getPose().ty();
+                          float anchorZ = anchors.get(0).anchor.getPose().tz();
+                          float[] points = new float[]{anchorX, anchorY, anchorZ};
+                          mPoints.add(points);
+                      } else if (anchors.size() == 2) {
+                          float anchorX = anchors.get(1).anchor.getPose().tx();
+                          float anchorY = anchors.get(1).anchor.getPose().ty();
+                          float anchorZ = anchors.get(1).anchor.getPose().tz();
+                          float[] points = new float[]{anchorX, anchorY, anchorZ};
+                          mPoints.add(points);
+                      }
+
+                      updateDistance(); //거리 업데이트
+
+                      break;
+                  }
+              }
           }
-
-          // Assign a color to the object for rendering based on the trackable type
-          // this anchor attached to. For AR_TRACKABLE_POINT, it's blue color, and
-          // for AR_TRACKABLE_PLANE, it's green color.
-          float[] objColor;
-          if (trackable instanceof Point) {
-            objColor = new float[] {66.0f, 133.0f, 244.0f, 255.0f};
-          } else if (trackable instanceof Plane) {
-            objColor = new float[] {139.0f, 195.0f, 74.0f, 255.0f};
-          } else {
-            objColor = DEFAULT_COLOR;
-          }
-
-          // Adding an Anchor tells ARCore that it should track this position in
-          // space. This anchor is created on the Plane to place the 3D model
-          // in the correct position relative both to the world and to the plane.
-          anchors.add(new ColoredAnchor(hit.createAnchor(), objColor));
-          break;
-        }
       }
+
     }
-  }
 
   /** Checks if we detected at least one plane. */
   private boolean hasTrackingPlane() {
@@ -453,11 +462,12 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
     runOnUiThread(new Runnable() {
       @Override
       public void run() {
+
         double distance=0.0;
         if(mPoints.size()==2){
-          float[] start=mPoints.get(0);
-          float[] end=mPoints.get(1);
-          distance=Math.sqrt((start[0]-end[0])*(start[0]-end[0])+(start[1]-end[1])*(start[1]-end[1])+(start[2]-end[2])*(start[2]-end[2]));
+          float[] start=mPoints.get(0); //시작점
+          float[] end=mPoints.get(1); //끝점
+          distance=Math.sqrt((start[0]-end[0])*(start[0]-end[0])+(start[1]-end[1])*(start[1]-end[1])+(start[2]-end[2])*(start[2]-end[2])); // 거리 구하기
           String distanceString=String.format(Locale.getDefault(),"%.2f",distance*100)+"cm";
           distanceTextview.setText(distanceString);
         }
