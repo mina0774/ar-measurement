@@ -34,6 +34,7 @@ import com.google.ar.core.Plane;
 import com.google.ar.core.Point;
 import com.google.ar.core.Point.OrientationMode;
 import com.google.ar.core.PointCloud;
+import com.google.ar.core.Pose;
 import com.google.ar.core.Session;
 import com.google.ar.core.Trackable;
 import com.google.ar.core.TrackingState;
@@ -56,6 +57,9 @@ import com.google.ar.core.exceptions.UnavailableSdkTooOldException;
 import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
@@ -67,7 +71,7 @@ import javax.microedition.khronos.opengles.GL10;
 public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.Renderer {
   private static final String TAG = HelloArActivity.class.getSimpleName();
 
-  // Rendering. The Renderers are created here, and initialized when the GL surface is created.
+  // Rendering. 여기서 렌더러가 생성, GL surface가 생성 될 때 초기화
   private GLSurfaceView surfaceView;
 
   private boolean installRequested; // ARCore 설치 유무
@@ -105,6 +109,7 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
   }
 
   private final ArrayList<ColoredAnchor> anchors = new ArrayList<>();
+  private List<float[]> mPoints=new ArrayList<float[]>();
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -149,8 +154,7 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
             break;
         }
 
-        // ARCore requires camera permissions to operate. If we did not yet obtain runtime
-        // permission on Android M and above, now is a good time to ask the user for it.
+        // ARCore 는 카메라 권한이 필요. 아직 Android M 이상에서 런타임 권한을 얻지 못한 경우에 사용자에게 권한 요청
         if (!CameraPermissionHelper.hasCameraPermission(this)) {
           CameraPermissionHelper.requestCameraPermission(this);
           return;
@@ -161,25 +165,25 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
 
       } catch (UnavailableArcoreNotInstalledException
           | UnavailableUserDeclinedInstallationException e) {
-        message = "Please install ARCore";
+        message = "ARCore를 설치해 주세요.";
         exception = e;
       } catch (UnavailableApkTooOldException e) {
-        message = "Please update ARCore";
+        message = "ARCore를 업데이트 해 주세요.";
         exception = e;
       } catch (UnavailableSdkTooOldException e) {
-        message = "Please update this app";
+        message = "앱을 업데이트 해 주세요.";
         exception = e;
       } catch (UnavailableDeviceNotCompatibleException e) {
-        message = "This device does not support AR";
+        message = "AR을 지원하지 않는 단말입니다.";
         exception = e;
       } catch (Exception e) {
-        message = "Failed to create AR session";
+        message = "AR 생성에 실패했습니다.";
         exception = e;
       }
 
       if (message != null) {
         messageSnackbarHelper.showError(this, message);
-        Log.e(TAG, "Exception creating session", exception);
+        Log.e(TAG, "에러가 발생했습니다.", exception);
         return;
       }
     }
@@ -188,7 +192,7 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
     try {
       session.resume();
     } catch (CameraNotAvailableException e) {
-      messageSnackbarHelper.showError(this, "Camera not available. Try restarting the app.");
+      messageSnackbarHelper.showError(this, "카메라를 사용할 수 없습니다. 앱을 다시 시작하세요.");
       session = null;
       return;
     }
@@ -327,8 +331,8 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
         pointCloudRenderer.draw(viewmtx, projmtx);
       }
 
-      // No tracking error at this point. If we detected any plane, then hide the
-      // message UI, otherwise show searchingPlane message.
+      // 이 시점에서 추적 오류 X. Plane이 감지되면 메시지 UI를 숨깁니다.
+      // 그렇지 않으면 검색 Plane 메시지를 표시.
       if (hasTrackingPlane()) {
         //평면이 그려질 때, 가이드를 숨김
         HelloArActivity.gifImageView.setVisibility(View.INVISIBLE);
@@ -354,6 +358,7 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
         coloredAnchor.anchor.getPose().getXAxis();
         coloredAnchor.anchor.getPose().getYAxis();
         coloredAnchor.anchor.getPose().getZAxis();
+
 
         // Update and draw the model and its shadow.
         virtualObject.updateModelMatrix(anchorMatrix, scaleFactor);
@@ -384,23 +389,23 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
                     == OrientationMode.ESTIMATED_SURFACE_NORMAL)) {
 
           //점이 찍힌 지점
-          float HitPointX = hit.getHitPose().tx();
-          float HitPointY = hit.getHitPose().ty();
-          float HitPointZ = hit.getHitPose().tz();
-          Log.d("hit",HitPointX+","+HitPointY+","+HitPointZ);
+          Pose pose=hit.getHitPose();
+          float[] points=new float[]{pose.tx(),pose.ty(),pose.tz()};
+          mPoints.add(points);
+          updateDistance();
+
           //카메라 위치
           float CamerapointX = camera.getPose().tx();
           float CamerapointY = camera.getPose().ty();
           float CamerapointZ = camera.getPose().tz();
-          Log.d("camera",CamerapointX+","+CamerapointY+","+CamerapointZ);
 
           // Rendering 된 지점 선택 위치와 거리(카메라와의)
           float returnDistance = hit.getDistance(); // 미터 단위
-          Log.d("distance",hit.getDistance()+"");
+
           // Hits are sorted by depth. Consider only closest hit on a plane or oriented point.
           // Cap the number of objects created. This avoids overloading both the
           // rendering system and ARCore.
-          if (anchors.size() >= 1) {
+          if (anchors.size() >= 2) {
             anchors.get(0).anchor.detach();
 
             // 선택 좌표
@@ -409,6 +414,7 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
             float anchorZ = anchors.get(0).anchor.getPose().tz();
             Log.d("anchor",anchorX+","+anchorY+","+anchorZ);
             anchors.remove(0);
+            updateDistance();
           }
 
           // Assign a color to the object for rendering based on the trackable type
@@ -441,5 +447,21 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
       }
     }
     return false;
+  }
+
+  public void updateDistance(){
+    runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        double distance=0.0;
+        if(mPoints.size()==2){
+          float[] start=mPoints.get(0);
+          float[] end=mPoints.get(1);
+          distance=Math.sqrt((start[0]-end[0])*(start[0]-end[0])+(start[1]-end[1])*(start[1]-end[1])+(start[2]-end[2])*(start[2]-end[2]));
+          String distanceString=String.format(Locale.getDefault(),"%.2f",distance*100)+"cm";
+          distanceTextview.setText(distanceString);
+        }
+      }
+    });
   }
 }
