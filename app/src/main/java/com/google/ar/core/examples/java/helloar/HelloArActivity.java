@@ -119,7 +119,7 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
   }
 
   private ArrayList<ColoredAnchor> anchors = new ArrayList<>();
-  private List<float[]> mPoints=new ArrayList<float[]>();
+  private List<float[]> mPoints=new ArrayList<float[]>(); // anchor의 좌표 저장하는 배열
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
