@@ -19,12 +19,15 @@ package com.google.ar.core.examples.java.helloar;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+
 import com.google.ar.core.Anchor;
 import com.google.ar.core.ArCoreApk;
 import com.google.ar.core.Camera;
@@ -63,6 +66,9 @@ import java.util.Locale;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
+import butterknife.BindView;
+import butterknife.ButterKnife;
+
 /**
  * This is a simple example that shows how to create an augmented reality (AR) application using the
  * ARCore API. The application will display any detected planes and will allow the user to tap on a
@@ -72,7 +78,7 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
   private static final String TAG = HelloArActivity.class.getSimpleName();
 
   // Rendering. 여기서 렌더러가 생성, GL surface가 생성 될 때 초기화
-  private GLSurfaceView surfaceView;
+  public GLSurfaceView surfaceView;
 
   private boolean installRequested; // ARCore 설치 유무
 
@@ -93,8 +99,13 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
 
   private static final String SEARCHING_PLANE_MESSAGE = "평면을 찾는 중입니다.";
 
-  public static pl.droidsonroids.gif.GifImageView gifImageView;
+  public pl.droidsonroids.gif.GifImageView gifImageView;
   public TextView distanceTextview;
+  public ImageButton nextButton;
+
+  private Integer measuremnet_count=0;
+  private Integer measurement_item_size=4; //예를 들어, 측정 항목의 개수가 4개라면..
+  private ArrayList<Double> measurement_items_distance=new ArrayList<>();
 
   // Anchors created from taps used for object placing with a given color.
   private static class ColoredAnchor {
@@ -107,22 +118,22 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
     }
   }
 
-  private final ArrayList<ColoredAnchor> anchors = new ArrayList<>();
+  private ArrayList<ColoredAnchor> anchors = new ArrayList<>();
   private List<float[]> mPoints=new ArrayList<float[]>();
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
-    surfaceView = findViewById(R.id.surfaceview);
+    surfaceView=findViewById(R.id.surfaceview);
+    distanceTextview=findViewById(R.id.distance_textview);
+    nextButton=findViewById(R.id.next_button);
+    gifImageView=findViewById(R.id.gifImageView);
     displayRotationHelper = new DisplayRotationHelper(/*context=*/ this);
 
     // Set up tap listener.
     tapHelper = new TapHelper(/*context=*/ this);
     surfaceView.setOnTouchListener(tapHelper);
-
-    gifImageView=findViewById(R.id.gifImageView);
-    distanceTextview=findViewById(R.id.distance_textview);
 
     // Set up renderer.
     surfaceView.setPreserveEGLContextOnPause(true);
@@ -132,9 +143,32 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
     surfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
     surfaceView.setWillNotDraw(false);
 
-   showLoadingMessage(this);
+    showLoadingMessage(this);
 
     installRequested = false;
+
+    // 다음 버튼을 눌렀을 경우, 다음 측정 항목으로 넘어감
+    nextButton.setOnClickListener(new View.OnClickListener() {
+      @Override
+      public void onClick(View view) {
+        // 현재 상태가, anchor의 점이 2개 찍힌 상태이고, 측정 항목의 개수보다 적은 상태에서
+        // 다음 버튼을 누를 시에, 원래 찍혀있던 anchor를 초기화함으로써 제거하고,
+        // anchor의 좌표를 저장하는 mPoints 또한 초기화함으로써 제거,
+        // 측정한 횟수인 count 를 1 올려주고,
+        // 실제 거리 "수치"로 설정된 textview를 "거리"로 변경
+        if(measuremnet_count<measurement_item_size-1 && anchors.size()==2){
+          anchors=new ArrayList<>();
+          mPoints=new ArrayList<>();
+          measuremnet_count++;
+          distanceTextview.setText("거리");
+        }
+        // 현재 상태가, 측정이 모두 완료된 상태이면,
+        // 각 측정 항목의 거리를 전송
+        else if(measuremnet_count==measurement_item_size-1){
+          Log.d("측정",measurement_items_distance.toString());
+        }
+      }
+    });
   }
 
   @Override
@@ -195,7 +229,6 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
       session = null;
       return;
     }
-
     surfaceView.onResume();
     displayRotationHelper.onResume();
   }
@@ -253,9 +286,8 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
       planeRenderer.createOnGlThread(/*context=*/ this, "models/trigrid.png");
       pointCloudRenderer.createOnGlThread(/*context=*/ this);
 
-      virtualObject.createOnGlThread(/*context=*/ this, "models/andy.obj", "models/andy.png");
+      virtualObject.createOnGlThread(/*context=*/ this, "models/dot.obj", "models/andy.png");
       virtualObject.setMaterialProperties(0.0f, 2.0f, 0.5f, 6.0f);
-
     } catch (IOException e) {
       Log.e(TAG, "Failed to read an asset file", e);
     }
@@ -325,11 +357,11 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
         pointCloudRenderer.draw(viewmtx, projmtx);
       }
 
-      // 이 시점에서 추적 오류 X. Plane이 감지되면 메시지 UI를 숨깁니다.
+      // 이 시점에서 추적 오류 X. 평면이 감지되면 메시지 UI 숨김.
       // 그렇지 않으면 검색 Plane 메시지를 표시.
       if (hasTrackingPlane()) {
         //평면이 그려질 때, 가이드를 숨김
-        HelloArActivity.gifImageView.setVisibility(View.INVISIBLE);
+        gifImageView.setVisibility(View.INVISIBLE);
         messageSnackbarHelper.hide(this);
       } else {
         messageSnackbarHelper.showMessage(this, SEARCHING_PLANE_MESSAGE);
@@ -340,7 +372,7 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
           session.getAllTrackables(Plane.class), camera.getDisplayOrientedPose(), projmtx);
 
       // Visualize anchors created by touch.
-      float scaleFactor = 0.1f;
+      float scaleFactor = 0.15f;
       for (ColoredAnchor coloredAnchor : anchors) {
         if (coloredAnchor.anchor.getTrackingState() != TrackingState.TRACKING) {
           continue;
@@ -353,7 +385,6 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
         coloredAnchor.anchor.getPose().getYAxis();
         coloredAnchor.anchor.getPose().getZAxis();
 
-
         // Update and draw the model and its shadow.
         virtualObject.updateModelMatrix(anchorMatrix, scaleFactor);
         virtualObject.draw(viewmtx, projmtx, colorCorrectionRgba, coloredAnchor.color);
@@ -365,88 +396,76 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
     }
   }
 
-    // Handle only one tap per frame, as taps are usually low frequency compared to frame rate.
-    private void handleTap(Frame frame, Camera camera) {
-      if(anchors.size()<2) {
-          MotionEvent tap = tapHelper.poll();
-          if (tap != null && camera.getTrackingState() == TrackingState.TRACKING) {
-              for (HitResult hit : frame.hitTest(tap)) {
-                  // Check if any plane was hit, and if it was hit inside the plane polygon
-                  Trackable trackable = hit.getTrackable();
-                  // Creates an anchor if a plane or an oriented point was hit.
-                  if ((trackable instanceof Plane
-                          && ((Plane) trackable).isPoseInPolygon(hit.getHitPose())
-                          && (PlaneRenderer.calculateDistanceToPlane(hit.getHitPose(), camera.getPose()) > 0))
-                          || (trackable instanceof Point
-                          && ((Point) trackable).getOrientationMode()
-                          == OrientationMode.ESTIMATED_SURFACE_NORMAL)) {
+  // Handle only one tap per frame, as taps are usually low frequency compared to frame rate.
+  private void handleTap(Frame frame, Camera camera) {
+    if(anchors.size()<2) {
+      MotionEvent tap = tapHelper.poll();
+      if (tap != null && camera.getTrackingState() == TrackingState.TRACKING) {
+        for (HitResult hit : frame.hitTest(tap)) {
+          // Check if any plane was hit, and if it was hit inside the plane polygon
+          Trackable trackable = hit.getTrackable();
+          // Creates an anchor if a plane or an oriented point was hit.
+          if ((trackable instanceof Plane
+                  && ((Plane) trackable).isPoseInPolygon(hit.getHitPose())
+                  && (PlaneRenderer.calculateDistanceToPlane(hit.getHitPose(), camera.getPose()) > 0))
+                  || (trackable instanceof Point
+                  && ((Point) trackable).getOrientationMode()
+                  == OrientationMode.ESTIMATED_SURFACE_NORMAL)) {
 
-                      //화면을 누른 지점
-                      Pose pose = hit.getHitPose();
+            //화면을 누른 지점
+            Pose pose = hit.getHitPose();
+            //카메라 위치
+            float CamerapointX = camera.getPose().tx();
+            float CamerapointY = camera.getPose().ty();
+            float CamerapointZ = camera.getPose().tz();
+            // Rendering 된 지점 선택 위치와 거리(카메라와의)
+            float returnDistance = hit.getDistance(); // 미터 단위
 
- /*
-                        //카메라 위치
-                        float CamerapointX = camera.getPose().tx();
-                        float CamerapointY = camera.getPose().ty();
-                        float CamerapointZ = camera.getPose().tz();
+            //Hits are sorted by depth. Consider only closest hit on a plane or oriented point.
+            // Cap the number of objects created. This avoids overloading both the
+            // rendering system and ARCore.
+            if (anchors.size() >= 2) {
+              //anchors.get(0).anchor.detach();
+              //anchors.remove(0);
+            }
 
-                        // Rendering 된 지점 선택 위치와 거리(카메라와의)
-                        float returnDistance = hit.getDistance(); // 미터 단위
+            // Assign a color to the object for rendering based on the trackable type
+            // this anchor attached to. For AR_TRACKABLE_POINT, it's blue color, and
+            // for AR_TRACKABLE_PLANE, it's green color.
+            float[] objColor;
+            if (trackable instanceof Point) {
+              objColor = new float[]{66.0f, 133.0f, 244.0f, 255.0f};
+            } else if (trackable instanceof Plane) {
+              objColor = new float[]{139.0f, 195.0f, 74.0f, 255.0f};
+            } else {
+              objColor = DEFAULT_COLOR;
+            }
 
-             Hits are sorted by depth. Consider only closest hit on a plane or oriented point.
-              // Cap the number of objects created. This avoids overloading both the
-              // rendering system and ARCore.
-              if (anchors.size() >= 2) {
-                  anchors.get(0).anchor.detach();
+            // Adding an Anchor tells ARCore that it should track this position in
+            // space. This anchor is created on the Plane to place the 3D model
+            // in the correct position relative both to the world and to the plane.
+            anchors.add(new ColoredAnchor(hit.createAnchor(), objColor));
 
-                  // 선택 좌표
-                  float anchorX = anchors.get(0).anchor.getPose().tx();
-                  float anchorY = anchors.get(0).anchor.getPose().ty();
-                  float anchorZ = anchors.get(0).anchor.getPose().tz();
-
-                  anchors.remove(0);
-              }*/
-
-                      // Assign a color to the object for rendering based on the trackable type
-                      // this anchor attached to. For AR_TRACKABLE_POINT, it's blue color, and
-                      // for AR_TRACKABLE_PLANE, it's green color.
-                      float[] objColor;
-                      if (trackable instanceof Point) {
-                          objColor = new float[]{66.0f, 133.0f, 244.0f, 255.0f};
-                      } else if (trackable instanceof Plane) {
-                          objColor = new float[]{139.0f, 195.0f, 74.0f, 255.0f};
-                      } else {
-                          objColor = DEFAULT_COLOR;
-                      }
-
-                      // Adding an Anchor tells ARCore that it should track this position in
-                      // space. This anchor is created on the Plane to place the 3D model
-                      // in the correct position relative both to the world and to the plane.
-                      anchors.add(new ColoredAnchor(hit.createAnchor(), objColor));
-
-                      if (anchors.size() == 1) {
-                          float anchorX = anchors.get(0).anchor.getPose().tx();
-                          float anchorY = anchors.get(0).anchor.getPose().ty();
-                          float anchorZ = anchors.get(0).anchor.getPose().tz();
-                          float[] points = new float[]{anchorX, anchorY, anchorZ};
-                          mPoints.add(points);
-                      } else if (anchors.size() == 2) {
-                          float anchorX = anchors.get(1).anchor.getPose().tx();
-                          float anchorY = anchors.get(1).anchor.getPose().ty();
-                          float anchorZ = anchors.get(1).anchor.getPose().tz();
-                          float[] points = new float[]{anchorX, anchorY, anchorZ};
-                          mPoints.add(points);
-                      }
-
-                      updateDistance(); //거리 업데이트
-
-                      break;
-                  }
-              }
+            if (anchors.size() == 1) {
+              float anchorX = anchors.get(0).anchor.getPose().tx();
+              float anchorY = anchors.get(0).anchor.getPose().ty();
+              float anchorZ = anchors.get(0).anchor.getPose().tz();
+              float[] points = new float[]{anchorX, anchorY, anchorZ};
+              mPoints.add(0, points);
+            } else if (anchors.size() == 2) {
+              float anchorX = anchors.get(1).anchor.getPose().tx();
+              float anchorY = anchors.get(1).anchor.getPose().ty();
+              float anchorZ = anchors.get(1).anchor.getPose().tz();
+              float[] points = new float[]{anchorX, anchorY, anchorZ};
+              mPoints.add(1, points);
+            }
+            updateDistance(); //거리 업데이트
+            break;
           }
+        }
       }
-
     }
+  }
 
   /** Checks if we detected at least one plane. */
   private boolean hasTrackingPlane() {
@@ -462,7 +481,6 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
     runOnUiThread(new Runnable() {
       @Override
       public void run() {
-
         double distance=0.0;
         if(mPoints.size()==2){
           float[] start=mPoints.get(0); //시작점
@@ -470,6 +488,7 @@ public class HelloArActivity extends AppCompatActivity implements GLSurfaceView.
           distance=Math.sqrt((start[0]-end[0])*(start[0]-end[0])+(start[1]-end[1])*(start[1]-end[1])+(start[2]-end[2])*(start[2]-end[2])); // 거리 구하기
           String distanceString=String.format(Locale.getDefault(),"%.2f",distance*100)+"cm";
           distanceTextview.setText(distanceString);
+          measurement_items_distance.add(distance);
         }
       }
     });

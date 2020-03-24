@@ -18,12 +18,10 @@ import android.content.Context;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
-import android.support.annotation.NonNull;
-import android.view.View;
+import androidx.annotation.NonNull;
 
 import com.google.ar.core.Coordinates2d;
 import com.google.ar.core.Frame;
-import com.google.ar.core.examples.java.helloar.HelloArActivity;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

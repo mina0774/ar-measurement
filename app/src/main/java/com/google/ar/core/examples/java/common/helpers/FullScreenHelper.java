@@ -14,20 +14,21 @@
  */
 package com.google.ar.core.examples.java.common.helpers;
 
-import android.app.Activity;
 import android.view.View;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 /** Helper to set up the Android full screen mode. */
 public final class FullScreenHelper {
   /**
    * Sets the Android fullscreen flags. Expected to be called from {@link
-   * Activity#onWindowFocusChanged(boolean hasFocus)}.
+   * AppCompatActivity#onWindowFocusChanged(boolean hasFocus)}.
    *
    * @param activity the Activity on which the full screen mode will be set.
-   * @param hasFocus the hasFocus flag passed from the {@link Activity#onWindowFocusChanged(boolean
+   * @param hasFocus the hasFocus flag passed from the {@link AppCompatActivity#onWindowFocusChanged(boolean
    *     hasFocus)} callback.
    */
-  public static void setFullScreenOnWindowFocusChanged(Activity activity, boolean hasFocus) {
+  public static void setFullScreenOnWindowFocusChanged(AppCompatActivity activity, boolean hasFocus) {
     if (hasFocus) {
       // https://developer.android.com/training/system-ui/immersive.html#sticky
       activity

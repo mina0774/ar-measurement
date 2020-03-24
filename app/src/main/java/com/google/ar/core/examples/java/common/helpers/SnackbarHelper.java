@@ -14,11 +14,14 @@
  */
 package com.google.ar.core.examples.java.common.helpers;
 
-import android.app.Activity;
-import android.support.design.widget.BaseTransientBottomBar;
-import android.support.design.widget.Snackbar;
 import android.view.View;
 import android.widget.TextView;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.android.material.snackbar.BaseTransientBottomBar;
+import com.google.android.material.snackbar.Snackbar;
+import com.google.ar.core.examples.java.helloar.R;
 
 /**
  * Helper to manage the sample snackbar. Hides the Android boilerplate code, and exposes simpler
@@ -36,7 +39,7 @@ public final class SnackbarHelper {
   }
 
   /** Shows a snackbar with a given message. */
-  public void showMessage(Activity activity, String message) {
+  public void showMessage(AppCompatActivity activity, String message) {
     if (!message.isEmpty() && (!isShowing() || !lastMessage.equals(message))) {
       lastMessage = message;
       show(activity, message, DismissBehavior.HIDE);
@@ -44,7 +47,7 @@ public final class SnackbarHelper {
   }
 
   /** Shows a snackbar with a given message, and a dismiss button. */
-  public void showMessageWithDismiss(Activity activity, String message) {
+  public void showMessageWithDismiss(AppCompatActivity activity, String message) {
     show(activity, message, DismissBehavior.SHOW);
   }
 
@@ -52,7 +55,7 @@ public final class SnackbarHelper {
    * Shows a snackbar with a given error message. When dismissed, will finish the activity. Useful
    * for notifying errors, where no further interaction with the activity is possible.
    */
-  public void showError(Activity activity, String errorMessage) {
+  public void showError(AppCompatActivity activity, String errorMessage) {
     show(activity, errorMessage, DismissBehavior.FINISH);
   }
 
@@ -60,7 +63,7 @@ public final class SnackbarHelper {
    * Hides the currently showing snackbar, if there is one. Safe to call from any thread. Safe to
    * call even if snackbar is not shown.
    */
-  public void hide(Activity activity) {
+  public void hide(AppCompatActivity activity) {
     if (!isShowing()) {
       return;
     }
@@ -81,7 +84,7 @@ public final class SnackbarHelper {
   }
 
   private void show(
-      final Activity activity, final String message, final DismissBehavior dismissBehavior) {
+          final AppCompatActivity activity, final String message, final DismissBehavior dismissBehavior) {
     activity.runOnUiThread(
         new Runnable() {
           @Override
@@ -115,7 +118,7 @@ public final class SnackbarHelper {
             ((TextView)
                     messageSnackbar
                         .getView()
-                        .findViewById(android.support.design.R.id.snackbar_text))
+                        .findViewById(R.id.snackbar_text))
                 .setMaxLines(maxLines);
             messageSnackbar.show();
           }

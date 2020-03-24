@@ -14,8 +14,10 @@
  */
 package com.google.ar.core.examples.java.common.helpers;
 
-import android.app.Activity;
 import android.view.WindowManager;
+
+import androidx.appcompat.app.AppCompatActivity;
+
 import com.google.ar.core.Camera;
 import com.google.ar.core.TrackingFailureReason;
 import com.google.ar.core.TrackingState;
@@ -32,11 +34,11 @@ public final class TrackingStateHelper {
   private static final String CAMERA_UNAVAILABLE_MESSAGE =
       "Another app is using the camera. Tap on this app or try closing the other one.";
 
-  private final Activity activity;
+  private final AppCompatActivity activity;
 
   private TrackingState previousTrackingState;
 
-  public TrackingStateHelper(Activity activity) {
+  public TrackingStateHelper(AppCompatActivity activity) {
     this.activity = activity;
   }
 
